@@ -1,9 +1,10 @@
 import os
 import argparse
-from unstructured.partition.text import partition_text
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 import pickle
+
 import pandas as pd
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from unstructured.partition.text import partition_text
 
 
 def parse_elements_to_dataframe(elements):
