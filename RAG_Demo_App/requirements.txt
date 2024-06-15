@@ -1,0 +1,12 @@
+numpy
+pandas
+matplotlib
+scikit-learn
+sentence-transformers
+openai
+umap-learn
+plotly
+gradio
+transformers
+cryptography
+numba==0.56.0
