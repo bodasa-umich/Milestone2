@@ -1,4 +1,4 @@
-\bf{Supervised Learning}
+**Supervised Learning**
 
 This folder contains the Supervised Learning portion of the project. It is trained on Enron email data that has been labeled by CMU.
 We have chosen to build a model that categorizes two kinds of email: General and Collaborative.
