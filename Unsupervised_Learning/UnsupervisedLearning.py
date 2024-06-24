@@ -14,7 +14,7 @@ import seaborn as sns
 from sklearn.decomposition import LatentDirichletAllocation, NMF
 
 # Load and clean dataset
-df = pd.read_csv('18776_df_group.csv')  # Adjust the path if necessary
+df = pd.read_csv('data/18776_df_group.csv')  # Adjust the path if necessary
 df = df[~df['GroupName'].str.startswith('Violations')]
 
 # Display the first few rows of the dataframe
