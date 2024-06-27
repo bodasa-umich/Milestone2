@@ -1,4 +1,3 @@
-
 import os
 import pandas as pd
 import numpy as np
@@ -12,9 +11,10 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.decomposition import LatentDirichletAllocation, NMF
+from scipy.spatial import ConvexHull
 
 # Load and clean dataset
-df = pd.read_csv('data/18776_df_group.csv')  # Adjust the path if necessary
+df = pd.read_csv('18776_df_group.csv')
 df = df[~df['GroupName'].str.startswith('Violations')]
 
 # Display the first few rows of the dataframe
@@ -55,6 +55,27 @@ df['Cluster'] = kmeans.fit_predict(X_svd)
 silhouette_avg = silhouette_score(X_svd, df['Cluster'])
 print(f"Silhouette Score for K-Means: {silhouette_avg}")
 
+# Define subjects for each cluster
+cluster_subjects = [
+    "Subject 1: Business Strategy",
+    "Subject 2: Document Collaboration",
+    "Subject 3: Financial Reports",
+    "Subject 4: Legal Issues",
+    "Subject 5: Employee Communications",
+    "Subject 6: Marketing Plans",
+    "Subject 7: Project Updates"
+]
+
+# Review sample documents for each cluster
+for i in range(num_clusters):
+    print(f"\nCluster {i} samples:")
+    try:
+        sample_docs = df[df['Cluster'] == i]['cleaned_text'].sample(3)
+    except ValueError:
+        sample_docs = df[df['Cluster'] == i]['cleaned_text']
+    for doc in sample_docs:
+        print(f"- {doc[:200]}...")
+
 # LDA topic modeling
 lda = LatentDirichletAllocation(n_components=num_clusters, random_state=42)
 lda_topics = lda.fit_transform(X)
@@ -66,12 +87,27 @@ nmf_topics = nmf.fit_transform(X)
 # Visualization: t-SNE for K-Means
 tsne = TSNE(n_components=2, random_state=42)
 X_tsne = tsne.fit_transform(X_svd)
-plt.figure(figsize=(12, 8))
-sns.scatterplot(x=X_tsne[:, 0], y=X_tsne[:, 1], hue=df['Cluster'], palette='tab10')
-plt.title('t-SNE visualization of K-Means Clusters')
+
+# Define a color palette for the clusters
+palette = sns.color_palette("tab10", num_clusters)
+
+plt.figure(figsize=(16, 10))
+for i in range(num_clusters):
+    points = X_tsne[df['Cluster'] == i]
+    if len(points) >= 3:
+        hull = ConvexHull(points)
+        plt.fill(points[hull.vertices, 0], points[hull.vertices, 1], color=palette[i], alpha=0.2)
+    sns.scatterplot(x=points[:, 0], y=points[:, 1], color=palette[i], label=f'Cluster {i}')
+
+# Add subjects for each cluster to the legend
+handles, labels = plt.gca().get_legend_handles_labels()
+for i, subject in enumerate(cluster_subjects):
+    labels[i] += f"\n{subject}"
+plt.legend(handles=handles, labels=labels, title='Cluster', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+plt.title('t-SNE visualization of K-Means Clusters with Convex Hulls')
 plt.xlabel('t-SNE 1')
 plt.ylabel('t-SNE 2')
-plt.legend(title='Cluster', bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.show()
 
 # Visualization: Word Clouds for LDA and NMF topics
@@ -90,7 +126,7 @@ plot_word_clouds(nmf, num_clusters, "NMF")
 
 # Sensitivity Analysis: Varying number of clusters for K-Means
 silhouette_scores = []
-for k in range(2,8):
+for k in range(2, 10):
     kmeans = KMeans(n_clusters=k, random_state=42)
     clusters = kmeans.fit_predict(X_svd)
     silhouette_avg = silhouette_score(X_svd, clusters)
@@ -98,7 +134,7 @@ for k in range(2,8):
     print(f"Silhouette Score for K-Means with {k} clusters: {silhouette_avg}")
 
 plt.figure(figsize=(10, 6))
-plt.plot(range(2, 8), silhouette_scores, marker='o')
+plt.plot(range(2, 10), silhouette_scores, marker='o')
 plt.title('Silhouette Scores for Varying Number of Clusters (K-Means)')
 plt.xlabel('Number of Clusters (K)')
 plt.ylabel('Silhouette Score')
@@ -110,7 +146,7 @@ def plot_top_words(model, feature_names, num_top_words, title):
     fig, axes = plt.subplots(1, num_clusters, figsize=(30, 15), sharex=True)
     axes = axes.flatten()
     for topic_idx, topic in enumerate(model.components_):
-        top_features_ind = topic.argsort()[:-num_top_words - 1::-1]
+        top_features_ind = topic.argsort()[:-num_top_words - 1:-1]
         top_features = [feature_names[i] for i in top_features_ind]
         weights = topic[top_features_ind]
         ax = axes[topic_idx]
@@ -136,7 +172,7 @@ summary_table = pd.DataFrame({
 print(summary_table)
 
 # Sensitivity Analysis: Varying number of topics for LDA and NMF
-topics = [3, 4, 5, 6, 7]
+topics = [3, 4, 5, 6, 7, 8, 9, 10]
 lda_perplexity = []
 nmf_reconstruction_error = []
 
@@ -144,12 +180,14 @@ for n_topics in topics:
     lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
     lda.fit(X)
     lda_perplexity.append(lda.perplexity(X))
-    
+
     nmf = NMF(n_components=n_topics, random_state=42)
     W = nmf.fit_transform(X)
     H = nmf.components_
     X_dense = X.toarray() if hasattr(X, 'toarray') else X
-    nmf_reconstruction_error.append(np.sqrt(np.sum((X_dense - np.dot(W, H)) ** 2)))
+    reconstruction_error = np.linalg.norm(X_dense - np.dot(W, H), 'fro')
+    nmf_reconstruction_error.append(reconstruction_error)
+    print(f"NMF Reconstruction Error for {n_topics} topics: {reconstruction_error}")
 
 plt.figure(figsize=(10, 6))
 plt.plot(topics, lda_perplexity, marker='o', label='LDA Perplexity')
